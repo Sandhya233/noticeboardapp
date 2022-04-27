@@ -1,0 +1,150 @@
+const express = require("express");
+const router = new express.Router();
+const User = require("../models/users");
+const auth = require("../middleware/auth");
+const { check, validationResult } = require("express-validator");
+const res = require("express/lib/response");
+const req = require("express/lib/request");
+const { update } = require("../models/users");
+//register user
+router.post(
+  "/user",
+  [
+    check("name").notEmpty().withMessage("Username cannot be empty"),
+    check("email")
+      .notEmpty()
+      .withMessage("email cannot be empty")
+      .isEmail()
+      .withMessage("invalid email address")
+      .custom(async (inputEmai) => {
+        const User = await User.findOne({ email: inputEmai }).exec();
+        if (user) {
+          throw new Error("Email already exists");
+        }
+      }),
+    check("password")
+      .notEmpty()
+      .withMessage("Password cannot be empty")
+      .isLength({ min: 6 })
+      .withMessage("Password  should have at least 6 characters"),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      var allErrors = {};
+      errors.errors.forEach(function (err) {
+        allErrors[err.param] = err.msg;
+      });
+      return res.json({
+        status: "fail",
+        data: allErrors,
+      });
+    }
+  }
+);
+router.get("/user/me", auth, async (req, res) => {
+  res.send({ status: "Success", data: { posts: req.user } });
+});
+//login user
+router.post(
+  "/user/login",
+  [
+    check("email")
+      .isEmail()
+      .withMessage("invalid email address")
+      .isEmpty()
+      .withMessage("Email must exist"),
+    check("password")
+      .isEmpty()()
+      .withMessage("Password must exist")
+      .custom(async (inputPassword, { req: req }) => {
+        req.currentUser = await User.findByCredentials(
+          req.body.email,
+          inputPassword
+        );
+        req.token = await req.generateAuthToken();
+      }),
+  ],
+  async (req, res) => {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      var allErrors = {};
+      errors.errors.forEach(function (err) {
+        allErrors[err.param] = err.msg;
+      });
+      return res.json({
+        status: "Fail",
+        data: allErrors,
+      });
+    }
+    res.json({
+      status: "success",
+      data: {
+        id: req.currentUser._id,
+        email: req.currentUser.email,
+      },
+      token: req.token,
+    });
+  }
+);
+//log out user
+router.post("/user/logout", auth, async (req, res) => {
+  try {
+    req.user.tokens = req.user.tokens.filter((token) => {
+      return token.token !== req.token;
+    });
+    await req.user.save();
+    res.json({
+      status: "success",
+      data: { posts: "User logged out successfully" },
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Sever Error",
+    });
+  }
+});
+//logout deleting all tokens
+router.post("/user/logoutall", auth, async (req, res) => {
+  try {
+    (req.user.tokens = []), await req.user.save(), res.json({});
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      message: "Server Error",
+    });
+  }
+});
+//update user
+router.patch("/user/update", auth, async (req, res) => {
+  const updates = Object.keys(req.body);
+  const allowedUpdates = ["name", "password", "email"];
+  const isValidOperation = updates.every((update) =>
+    allowedUpdates.includes(updates)
+  );
+  if (!isValidOperation) {
+    return res.status(404).send({ error: "Invalid updates" });
+  }
+  try {
+    updates.forEach((update) => (res.user[update] = req.body[update]));
+    await req.user.save();
+    res.json({ status: "success", data: { post: req.user } });
+  } catch (error) {
+    res.status(
+      (404).json({ status: "error", message: "error occuerd please try again" })
+    );
+  }
+});
+//delete user
+router.delete("/user/delete", auth, async (req, res) => {
+  try {
+    req.user.remove();
+    res.json({ staus: "success", data: null });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ status: "Error", message: "error occured please try again" });
+  }
+});
+module.exports = router;
