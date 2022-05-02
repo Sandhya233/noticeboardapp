@@ -2,7 +2,7 @@ const express = require("express");
 const router = new express.Router();
 const User = require("../models/users");
 const auth = require("../middleware/auth");
-const { check, validationResult } = require("express-validator");
+const { check, validationResult, body } = require("express-validator");
 const res = require("express/lib/response");
 const req = require("express/lib/request");
 const { update } = require("../models/users");
@@ -17,8 +17,8 @@ router.post(
       .isEmail()
       .withMessage("invalid email address")
       .custom(async (inputEmai) => {
-        const User = await User.findOne({ email: inputEmai }).exec();
-        if (user) {
+        const User1 = await User.findOne({ email: inputEmai }).exec();
+        if (User1) {
           throw new Error("Email already exists");
         }
       }),
@@ -40,6 +40,18 @@ router.post(
         data: allErrors,
       });
     }
+    const user = new User(req.body);
+    try {
+      await user.save();
+      const token = await user.generateAuthToken();
+      res.status(201).json({
+        status: "success",
+        data: { id: user._id, email: user.email },
+        token,
+      });
+    } catch (error) {
+      res.status(400).json({ status: "error", message: "server error" });
+    }
   }
 );
 router.get("/user/me", auth, async (req, res) => {
@@ -49,23 +61,24 @@ router.get("/user/me", auth, async (req, res) => {
 router.post(
   "/user/login",
   [
-    check("email")
+    body("email")
       .isEmail()
       .withMessage("invalid email address")
-      .isEmpty()
-      .withMessage("Email must exist"),
-    check("password")
-      .isEmpty()()
-      .withMessage("Password must exist")
+      .notEmpty()
+      .withMessage("email cannot be empty"),
+    body("password")
+      .notEmpty()
+      .withMessage("Password cannot be empty")
       .custom(async (inputPassword, { req: req }) => {
         req.currentUser = await User.findByCredentials(
           req.body.email,
           inputPassword
         );
-        req.token = await req.generateAuthToken();
+        req.token = await req.currentUser.generateAuthToken();
       }),
   ],
   async (req, res) => {
+    console.log(req.body);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       var allErrors = {};

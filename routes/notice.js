@@ -18,9 +18,10 @@ router.post(
   ],
   auth,
   async (req, res) => {
+    console.log("check");
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      var allError = {};
+      var allErrors = {};
       errors.errors.forEach(function (err) {
         allErrors[err.params] = err.msg;
       });
@@ -28,19 +29,20 @@ router.post(
         staus: "fail",
         data: allErrors,
       });
-      const notice = new notice({
-        ...req.body,
-        author: req.user._id,
+    }
+    const notice = new Notice({
+      ...req.body,
+      author: req.user._id,
+    });
+    try {
+      await notice.save();
+      res.status(201).json({ status: "success", data: { posts: notice } });
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({
+        status: "error",
+        message: " error occured please try again",
       });
-      try {
-        await notice.save();
-        res.staus(201).json({ status: "success", data: { posts: notice } });
-      } catch (error) {
-        res.status.send({
-          status: "error",
-          message: " error occured please try again",
-        });
-      }
     }
   }
 );
