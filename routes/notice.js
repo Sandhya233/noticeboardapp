@@ -103,15 +103,12 @@ router.patch("/notice/:id", auth, async (req, res) => {
       return res.response(404).send();
     }
     res.send(notice);*/
+    console.log("try code");
     if (req.user.role === "admin") {
-      const notice = await Notice.findByIdAndUpdate(
-        req.params.id,
-        req.user._id,
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+      const notice = await Notice.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
       return res.json({
         status: "success",
         data: { post: notice },
@@ -134,8 +131,14 @@ router.patch("/notice/:id", auth, async (req, res) => {
           },
         });
       }
+      return res.json({
+        status: "success",
+        data: { post: notice },
+        messsage: "updated by author",
+      });
     }
   } catch (error) {
+    console.log(error);
     res.status(400).json({ status: "error", message: "Server error" });
   }
 });
@@ -147,14 +150,10 @@ router.delete("/notice/:id", auth, async (req, res) => {
   });*/
   try {
     if (req.user.role === "admin") {
-      const notice = await Notice.findByIdAndDelete(
-        req.params.id,
-        req.user._id,
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+      const notice = await Notice.findByIdAndDelete(req.params.id, {
+        new: true,
+        runValidators: true,
+      });
       return res.json({
         status: "success",
         data: { post: notice },
@@ -180,6 +179,7 @@ router.delete("/notice/:id", auth, async (req, res) => {
       }
     }
   } catch (error) {
+    console.log(error);
     res.status(400).json({ status: "error", message: "Server error" });
   }
 });
