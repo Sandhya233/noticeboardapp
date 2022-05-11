@@ -7,9 +7,20 @@ const { check, validationResult } = require("express-validator");
 const req = require("express/lib/request");
 const res = require("express/lib/response");
 const { update } = require("../models/users");
+const multer = require("multer");
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "./uploads/");
+  },
+  filename: function (req, file, cb) {
+    cb(null, new Date().toISOString() + file.originalname);
+  },
+});
+const upload = multer({ storage: storage });
 //create notice
 router.post(
   "/notice",
+  upload.single("officelogo"),
   [
     check("title").notEmpty().withMessage("Notice must have a title"),
     check("description")
@@ -18,7 +29,7 @@ router.post(
   ],
   auth,
   async (req, res) => {
-    console.log("check");
+    console.log(req.file);
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       var allErrors = {};
